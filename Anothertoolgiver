@@ -1,0 +1,196 @@
+--[[
+This script provides a tool-giving system for Roblox using a client-server setup. The client can request tools, and the server validates and gives the tool if the request is valid.
+
+This script can be uploaded to GitHub and executed via loadstring for quick integration in your game.
+
+Client-side GUI and tool selection are handled by the LocalScript, while all validation (cooldowns, duplicates, etc.) happens server-side.
+]]--
+
+--[[
+Server-Side Script (inside ServerScriptService)
+]]--
+
+-- Server Script (ServerScriptService)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+
+-- Configuration
+local TOOLS_FOLDER_NAME = "Tools"
+local COOLDOWN_SECONDS = 1.5
+local MAX_DUPLICATES_PER_TOOL = 3
+local REMOTE_NAME = "RequestGiveTool"
+
+-- Internal state
+local lastRequest = {} -- stores timestamps of when each player made the last request
+
+local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
+local requestGiveToolEvent = remotesFolder:WaitForChild(REMOTE_NAME)
+local toolsFolder = ReplicatedStorage:WaitForChild(TOOLS_FOLDER_NAME)
+
+-- Helper function: count how many of a specific tool the player already has
+local function countPlayerTool(player, toolName)
+    local count = 0
+    -- Count tools in Backpack and character
+    local function checkContainer(container)
+        if container then
+            for _, item in ipairs(container:GetChildren()) do
+                if item:IsA("Tool") and item.Name == toolName then
+                    count = count + 1
+                end
+            end
+        end
+    end
+    checkContainer(player:FindFirstChildOfClass("Backpack"))
+    checkContainer(player.Character)
+    return count
+end
+
+-- Validate and process tool requests
+requestGiveToolEvent.OnServerEvent:Connect(function(player, toolName)
+    -- Basic validation checks
+    if typeof(toolName) ~= "string" then
+        warn(("Player %s sent an invalid toolName type"):format(player.Name))
+        return
+    end
+
+    -- Ensure cooldown between requests (anti-spam)
+    local currentTime = tick()
+    local lastTime = lastRequest[player.UserId] or 0
+    if currentTime - lastTime < COOLDOWN_SECONDS then
+        warn(("Player %s is requesting too quickly (%.2f seconds between requests)"):format(player.Name, currentTime - lastTime))
+        return
+    end
+    lastRequest[player.UserId] = currentTime
+
+    -- Ensure the tool exists in ReplicatedStorage.Tools
+    local toolTemplate = toolsFolder:FindFirstChild(toolName)
+    if not toolTemplate or not toolTemplate:IsA("Tool") then
+        warn(("Player %s requested a non-existent or invalid tool: %s"):format(player.Name, toolName))
+        return
+    end
+
+    -- Ensure the player doesn't have too many copies of the tool
+    local toolCount = countPlayerTool(player, toolName)
+    if toolCount >= MAX_DUPLICATES_PER_TOOL then
+        warn(("Player %s already has %d copies of %s. Max allowed: %d"):format(player.Name, toolCount, toolName, MAX_DUPLICATES_PER_TOOL))
+        return
+    end
+
+    -- Clone the tool and give it to the player
+    local clonedTool = toolTemplate:Clone()
+    clonedTool.Parent = player:WaitForChild("Backpack")
+
+    -- Optional: Log tool-giving event for anti-cheat purposes (Xeno Logging or similar)
+    print(("Gave tool '%s' to player '%s'"):format(toolName, player.Name))
+end)
+
+--[[
+Client-Side GUI (LocalScript)
+]]--
+
+-- LocalScript (StarterGui -> GiveGui -> MainFrame)
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local guiRoot = script.Parent
+local statusLabel = guiRoot:WaitForChild("StatusLabel")
+local itemsFrame = guiRoot:WaitForChild("ItemsFrame")
+
+-- RemoteEvent to request tools from the server
+local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
+local requestGiveToolEvent = remotesFolder:WaitForChild("RequestGiveTool")
+
+-- Styling settings
+local BUTTON_SIZE = UDim2.new(1, -10, 0, 42) -- width anchored to parent minus padding
+local BUTTON_PADDING = 6
+
+-- Helper: create a sleek button
+local function makeButton(toolName)
+    local btn = Instance.new("TextButton")
+    btn.Name = "Btn_" .. toolName
+    btn.Size = BUTTON_SIZE
+    btn.BackgroundColor3 = Color3.fromRGB(38,38,43)
+    btn.BorderSizePixel = 0
+    btn.TextColor3 = Color3.fromRGB(230,230,230)
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 18
+    btn.Text = toolName
+    btn.AutoButtonColor = false
+
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(0,10)
+
+    -- Hover tweens
+    local hoverIn = TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(58,58,63)})
+    local hoverOut = TweenService:Create(btn, TweenInfo.new(0.18, Enum.EasingStyle.Quad), {BackgroundColor3 = Color3.fromRGB(38,38,43)})
+
+    btn.MouseEnter:Connect(function() hoverIn:Play() end)
+    btn.MouseLeave:Connect(function() hoverOut:Play() end)
+
+    return btn
+end
+
+-- Clear previous children in itemsFrame (if any)
+for _, c in ipairs(itemsFrame:GetChildren()) do
+    if not c:IsA("UIListLayout") and not c:IsA("UIPadding") then
+        c:Destroy()
+    end
+end
+
+-- Populate the UI with tools from ReplicatedStorage.Tools
+local toolsFolder = ReplicatedStorage:FindFirstChild("Tools")
+if not toolsFolder then
+    statusLabel.Text = "No Tools folder found in ReplicatedStorage."
+    return
+end
+
+local uiListLayout = itemsFrame:FindFirstChildOfClass("UIListLayout")
+if not uiListLayout then
+    uiListLayout = Instance.new("UIListLayout")
+    uiListLayout.Parent = itemsFrame
+    uiListLayout.Padding = UDim.new(0, BUTTON_PADDING)
+end
+
+local function populateButtons()
+    -- Create a button for every Tool in Tools folder
+    for _, tool in ipairs(toolsFolder:GetChildren()) do
+        if tool:IsA("Tool") then
+            local btn = makeButton(tool.Name)
+            btn.Parent = itemsFrame
+
+            btn.MouseButton1Click:Connect(function()
+                -- disable button briefly to prevent spam double-click
+                btn.Active = false
+                btn.AutoButtonColor = false
+
+                -- Update status and fire server
+                statusLabel.Text = "Requesting " .. tool.Name .. "..."
+                -- Fire the server (server will validate, plural arguments allowed)
+                local success, err = pcall(function()
+                    requestGiveToolEvent:FireServer(tool.Name)
+                end)
+                if not success then
+                    statusLabel.Text = "Failed to request: "..tostring(err)
+                end
+
+                -- re-enable after short delay (visual debounce)
+                delay(0.4, function()
+                    btn.Active = true
+                end)
+            end)
+        end
+    end
+end
+
+populateButtons()
+statusLabel.Text = "Select an item to request."
+
+--[[
+How to use this script:
+1. Upload it to GitHub as a single script.
+2. In your game, create a RemoteEvent called "RequestGiveTool" under `ReplicatedStorage.Remotes`.
+3. Create a "Tools" folder under `ReplicatedStorage` and add your tools there.
+4. Copy the whole code and use `loadstring()` to execute the script inside your game.
+]]--
