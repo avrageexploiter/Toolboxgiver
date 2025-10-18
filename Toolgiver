@@ -1,0 +1,46 @@
+local Players = game:GetService("Players")
+local Toolbox = game:GetService("Toolbox")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ToolboxHub"
+screenGui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 400)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+scrollFrame.BorderSizePixel = 0
+scrollFrame.Parent = frame
+
+local function createItemButton(item)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 0, 30)
+    button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    button.BorderSizePixel = 0
+    button.Text = item.Name
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.SourceSans
+    button.Parent = scrollFrame
+
+    button.MouseButton1Click:Connect(function()
+        local tool = Toolbox:FindFirstChild(item.Name):Clone()
+        tool.Parent = player.Backpack
+    end)
+end
+
+for _, item in pairs(Toolbox:GetChildren()) do
+    if item:IsA("Tool") or item:IsA("Model") then
+        createItemButton(item)
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, scrollFrame.CanvasSize.Y.UOffset + 30)
+    end
+end
