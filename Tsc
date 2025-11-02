@@ -1,0 +1,259 @@
+-- Load necessary services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+-- Get the local player
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- Obfuscation function to hide the script
+local function obfuscateString(str)
+    local obfuscated = ""
+    for i = 1, #str do
+        obfuscated = obfuscated .. string.char(string.byte(str, i) + 1)
+    end
+    return obfuscated
+end
+
+-- Create the GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = obfuscateString("ExploitGUI")
+screenGui.Parent = game:GetService("CoreGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 250, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Create a gradient background
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(10, 10, 10))
+gradient.Rotation = 90
+gradient.Parent = mainFrame
+
+-- Create a title label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 50)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+titleLabel.Text = "Exploit Menu"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 24
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Center
+titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+titleLabel.Parent = mainFrame
+
+-- Create a close button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.Text = "X"
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextSize = 20
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Parent = mainFrame
+
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
+
+-- Function to create buttons with animation
+local function createButton(parent, text, position, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 200, 0, 40)
+    button.Position = position
+    button.Text = text
+    button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 18
+    button.Font = Enum.Font.SourceSans
+    button.Parent = parent
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
+    end)
+
+    button.MouseButton1Click:Connect(callback)
+    return button
+end
+
+-- Function to create sliders with animation
+local function createSlider(parent, text, position, min, max, default)
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(0, 200, 0, 50)
+    sliderFrame.Position = position
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    sliderFrame.Parent = parent
+
+    local sliderLabel = Instance.new("TextLabel")
+    sliderLabel.Size = UDim2.new(1, 0, 0, 25)
+    sliderLabel.Position = UDim2.new(0, 0, 0, 0)
+    sliderLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    sliderLabel.Text = text
+    sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sliderLabel.TextSize = 18
+    sliderLabel.Font = Enum.Font.SourceSans
+    sliderLabel.TextXAlignment = Enum.TextXAlignment.Center
+    sliderLabel.Parent = sliderFrame
+
+    local slider = Instance.new("Slider")
+    slider.Size = UDim2.new(0, 180, 0, 25)
+    slider.Position = UDim2.new(0.5, -90, 0, 25)
+    slider.Minimum = min
+    slider.Maximum = max
+    slider.Value = default
+    slider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    slider.Parent = sliderFrame
+
+    slider.MouseEnter:Connect(function()
+        TweenService:Create(slider, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}):Play()
+    end)
+
+    slider.MouseLeave:Connect(function()
+        TweenService:Create(slider, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+    end)
+
+    return slider
+end
+
+-- Noclip Toggle
+local noclipButton = createButton(mainFrame, "Noclip", UDim2.new(0.5, -100, 0, 70), function()
+    if noclipButton.Text == "Noclip" then
+        noclipButton.Text = "Noclip On"
+        while true do
+            character:WaitForChild("HumanoidRootPart").CanCollide = false
+            RunService.RenderStepped:Wait()
+        end
+    else
+        noclipButton.Text = "Noclip"
+        character:WaitForChild("HumanoidRootPart").CanCollide = true
+    end
+end)
+
+-- Speed Slider
+local speedSlider = createSlider(mainFrame, "Speed", UDim2.new(0.5, -100, 0, 130), 16, 100, 16)
+speedSlider.Changed:Connect(function()
+    character:WaitForChild("Humanoid").WalkSpeed = speedSlider.Value
+end)
+
+-- Jump Slider
+local jumpSlider = createSlider(mainFrame, "Jump", UDim2.new(0.5, -100, 0, 190), 50, 200, 50)
+jumpSlider.Changed:Connect(function()
+    character:WaitForChild("Humanoid").JumpPower = jumpSlider.Value
+end)
+
+-- Aimbot Toggle
+local aimbotButton = createButton(mainFrame, "Aimbot", UDim2.new(0.5, -100, 0, 250), function()
+    if aimbotButton.Text == "Aimbot" then
+        aimbotButton.Text = "Aimbot On"
+        while true do
+            local closestPlayer, closestDistance = nil, math.huge
+            for _, v in pairs(Players:GetPlayers()) do
+                if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                    local magnitude = (v.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
+                    if magnitude < closestDistance then
+                        closestPlayer = v
+                        closestDistance = magnitude
+                    end
+                end
+            end
+            if closestPlayer then
+                character:WaitForChild("Humanoid").MoveTo(closestPlayer.Character.HumanoidRootPart.Position)
+            end
+            RunService.RenderStepped:Wait()
+        end
+    else
+        aimbotButton.Text = "Aimbot"
+    end
+end)
+
+-- Team Selection Dropdown
+local teamDropdown = Instance.new("Dropdown")
+teamDropdown.Size = UDim2.new(0, 200, 0, 40)
+teamDropdown.Position = UDim2.new(0.5, -100, 0, 310)
+teamDropdown.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+teamDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+teamDropdown.TextSize = 18
+teamDropdown.Font = Enum.Font.SourceSans
+teamDropdown.Parent = mainFrame
+
+local teams = {"Team1", "Team2", "Team3", "Team4"} -- Replace with actual team names
+for _, team in ipairs(teams) do
+    local option = Instance.new("DropdownItem")
+    option.Text = team
+    option.Parent = teamDropdown
+end
+
+teamDropdown.MouseEnter:Connect(function()
+    TweenService:Create(teamDropdown, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+end)
+
+teamDropdown.MouseLeave:Connect(function()
+    TweenService:Create(teamDropdown, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30, 30, 30)}):Play()
+end)
+
+teamDropdown.Selected:Connect(function(team)
+    -- Change the player's team
+    player.Team = game.Teams:FindFirstChild(team)
+end)
+
+-- Dynamic code injection to avoid static detection
+local function injectCode()
+    local function noclip()
+        while true do
+            character:WaitForChild("HumanoidRootPart").CanCollide = false
+            RunService.RenderStepped:Wait()
+        end
+    end
+
+    local function aimbot()
+        while true do
+            local closestPlayer, closestDistance = nil, math.huge
+            for _, v in pairs(Players:GetPlayers()) do
+                if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                    local magnitude = (v.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
+                    if magnitude < closestDistance then
+                        closestPlayer = v
+                        closestDistance = magnitude
+                    end
+                end
+            end
+            if closestPlayer then
+                character:WaitForChild("Humanoid").MoveTo(closestPlayer.Character.HumanoidRootPart.Position)
+            end
+            RunService.RenderStepped:Wait()
+        end
+    end
+
+    -- Inject noclip and aimbot functions dynamically
+    noclipButton.MouseButton1Click:Connect(function()
+        if noclipButton.Text == "Noclip" then
+            noclipButton.Text = "Noclip On"
+            noclip()
+        else
+            noclipButton.Text = "Noclip"
+            character:WaitForChild("HumanoidRootPart").CanCollide = true
+        end
+    end)
+
+    aimbotButton.MouseButton1Click:Connect(function()
+        if aimbotButton.Text == "Aimbot" then
+            aimbotButton.Text = "Aimbot On"
+            aimbot()
+        else
+            aimbotButton.Text = "Aimbot"
+        end
+    end)
+end
+
+injectCode()
